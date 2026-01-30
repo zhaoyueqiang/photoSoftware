@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.spec
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test data (可选，如果不想上传测试数据)
+# photos/
+# out/
+# *.vcf
+
+# 打包结果（不需要推送，GitHub Actions 会自动打包）
+PhotoSoftware-Mac/
+PhotoSoftware-Mac.zip
+*.app/
