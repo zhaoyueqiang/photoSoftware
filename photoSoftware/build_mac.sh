@@ -42,6 +42,16 @@ if ! python3 -c "import PyQt5" 2>/dev/null; then
     pip3 install PyQt5
 fi
 
+if ! python3 -c "import PIL" 2>/dev/null; then
+    echo "正在安装 Pillow..."
+    pip3 install Pillow
+fi
+
+if ! python3 -c "import defusedxml" 2>/dev/null; then
+    echo "正在安装 defusedxml..."
+    pip3 install defusedxml
+fi
+
 echo "所有依赖已就绪"
 
 # 清理旧的构建文件
@@ -66,7 +76,10 @@ python3 -m PyInstaller \
     --hidden-import=PyQt5.QtGui \
     --hidden-import=PyQt5.QtWidgets \
     --hidden-import=PyQt5.sip \
+    --hidden-import=PIL \
+    --hidden-import=PIL.Image \
     --collect-all=PyQt5 \
+    --collect-all=PIL \
     --strip \
     main.py
 

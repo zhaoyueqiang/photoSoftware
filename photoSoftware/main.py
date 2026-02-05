@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 照片处理软件 - 桌面应用
-联系人匹配和照片打包功能
+联系人匹配和HTML相册生成功能
 """
 
 import sys
@@ -11,7 +11,8 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFileDialog, QMessageBox, QTextEdit, QLineEdit
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QUrl
+from PyQt5.QtGui import QDesktopServices
 from backend import ContactMatcher
 
 
@@ -20,16 +21,16 @@ class ProcessThread(QThread):
     finished = pyqtSignal(dict)
     error = pyqtSignal(str)
     
-    def __init__(self, folder_path, vcf_path, output_path):
+    def __init__(self, photos_folder, vcf_path, output_path):
         super().__init__()
-        self.folder_path = folder_path
+        self.photos_folder = photos_folder
         self.vcf_path = vcf_path
         self.output_path = output_path
     
     def run(self):
         try:
             matcher = ContactMatcher()
-            result = matcher.process(self.folder_path, self.vcf_path, self.output_path)
+            result = matcher.process(self.photos_folder, self.vcf_path, self.output_path)
             self.finished.emit(result)
         except Exception as e:
             self.error.emit(str(e))
@@ -40,7 +41,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.folder_path = ''
+        self.photos_folder = ''
         self.vcf_path = ''
         self.output_path = ''
         self.process_thread = None
@@ -48,7 +49,7 @@ class MainWindow(QMainWindow):
     
     def init_ui(self):
         """初始化用户界面"""
-        self.setWindowTitle('照片处理软件 - 联系人匹配')
+        self.setWindowTitle('照片处理软件 - 联系人匹配和HTML相册生成')
         self.setGeometry(100, 100, 900, 700)
         
         # 创建中央部件
@@ -61,31 +62,31 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(20, 20, 20, 20)
         
         # 标题
-        title_label = QLabel('联系人匹配和照片打包工具')
+        title_label = QLabel('联系人照片匹配和HTML相册生成工具')
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("font-size: 20px; font-weight: bold; margin: 10px;")
         main_layout.addWidget(title_label)
         
-        # 文件夹路径选择
-        folder_group = QWidget()
-        folder_layout = QVBoxLayout(folder_group)
+        # 照片文件夹选择
+        photos_group = QWidget()
+        photos_layout = QVBoxLayout(photos_group)
         
-        folder_label = QLabel('1. 选择包含子文件夹的基础文件夹（源文件夹）：')
-        folder_label.setStyleSheet("font-weight: bold;")
-        folder_layout.addWidget(folder_label)
+        photos_label = QLabel('1. 选择包含照片的文件夹（支持人脸识别标记的照片）：')
+        photos_label.setStyleSheet("font-weight: bold;")
+        photos_layout.addWidget(photos_label)
         
-        folder_input_layout = QHBoxLayout()
-        self.folder_input = QLineEdit()
-        self.folder_input.setPlaceholderText('请选择源文件夹路径...')
-        self.folder_input.setReadOnly(True)
-        folder_input_layout.addWidget(self.folder_input)
+        photos_input_layout = QHBoxLayout()
+        self.photos_input = QLineEdit()
+        self.photos_input.setPlaceholderText('请选择照片文件夹路径...')
+        self.photos_input.setReadOnly(True)
+        photos_input_layout.addWidget(self.photos_input)
         
-        self.folder_btn = QPushButton('选择文件夹')
-        self.folder_btn.clicked.connect(self.select_folder)
-        folder_input_layout.addWidget(self.folder_btn)
-        folder_layout.addLayout(folder_input_layout)
+        self.photos_btn = QPushButton('选择照片文件夹')
+        self.photos_btn.clicked.connect(self.select_photos_folder)
+        photos_input_layout.addWidget(self.photos_btn)
+        photos_layout.addLayout(photos_input_layout)
         
-        main_layout.addWidget(folder_group)
+        main_layout.addWidget(photos_group)
         
         # VCF文件选择
         vcf_group = QWidget()
@@ -108,21 +109,21 @@ class MainWindow(QMainWindow):
         
         main_layout.addWidget(vcf_group)
         
-        # 输出目录选择
+        # 输出HTML文件选择
         output_group = QWidget()
         output_layout = QVBoxLayout(output_group)
         
-        output_label = QLabel('3. 选择输出目录（保存处理结果）：')
+        output_label = QLabel('3. 选择输出HTML文件路径：')
         output_label.setStyleSheet("font-weight: bold;")
         output_layout.addWidget(output_label)
         
         output_input_layout = QHBoxLayout()
         self.output_input = QLineEdit()
-        self.output_input.setPlaceholderText('请选择输出目录...')
+        self.output_input.setPlaceholderText('请选择输出HTML文件路径...')
         self.output_input.setReadOnly(True)
         output_input_layout.addWidget(self.output_input)
         
-        self.output_btn = QPushButton('选择输出目录')
+        self.output_btn = QPushButton('选择输出文件')
         self.output_btn.clicked.connect(self.select_output)
         output_input_layout.addWidget(self.output_btn)
         output_layout.addLayout(output_input_layout)
@@ -178,16 +179,16 @@ class MainWindow(QMainWindow):
         # 更新按钮状态
         self.update_button_state()
     
-    def select_folder(self):
-        """选择文件夹"""
+    def select_photos_folder(self):
+        """选择照片文件夹"""
         folder = QFileDialog.getExistingDirectory(
             self,
-            '选择包含子文件夹的基础文件夹',
+            '选择包含照片的文件夹',
             ''
         )
         if folder:
-            self.folder_path = folder
-            self.folder_input.setText(folder)
+            self.photos_folder = folder
+            self.photos_input.setText(folder)
             self.update_button_state()
     
     def select_vcf(self):
@@ -204,39 +205,43 @@ class MainWindow(QMainWindow):
             self.update_button_state()
     
     def select_output(self):
-        """选择输出目录"""
-        folder = QFileDialog.getExistingDirectory(
+        """选择输出HTML文件"""
+        file_path, _ = QFileDialog.getSaveFileName(
             self,
-            '选择输出目录',
-            ''
+            '选择输出HTML文件',
+            '',
+            'HTML文件 (*.html);;所有文件 (*.*)'
         )
-        if folder:
-            self.output_path = folder
-            self.output_input.setText(folder)
+        if file_path:
+            # 确保文件扩展名是.html
+            if not file_path.endswith('.html'):
+                file_path += '.html'
+            self.output_path = file_path
+            self.output_input.setText(file_path)
             self.update_button_state()
     
     def update_button_state(self):
         """更新按钮状态"""
         self.process_btn.setEnabled(
-            bool(self.folder_path) and bool(self.vcf_path) and bool(self.output_path)
+            bool(self.photos_folder) and bool(self.vcf_path) and bool(self.output_path)
         )
     
     def start_processing(self):
         """开始处理"""
-        if not self.folder_path or not self.vcf_path or not self.output_path:
-            QMessageBox.warning(self, '错误', '请先选择源文件夹、VCF文件和输出目录')
+        if not self.photos_folder or not self.vcf_path or not self.output_path:
+            QMessageBox.warning(self, '错误', '请先选择照片文件夹、VCF文件和输出HTML文件')
             return
         
         # 禁用按钮
         self.process_btn.setEnabled(False)
-        self.folder_btn.setEnabled(False)
+        self.photos_btn.setEnabled(False)
         self.vcf_btn.setEnabled(False)
         self.output_btn.setEnabled(False)
         self.status_label.setText('处理中，请稍候...')
         self.result_text.clear()
         
         # 创建处理线程
-        self.process_thread = ProcessThread(self.folder_path, self.vcf_path, self.output_path)
+        self.process_thread = ProcessThread(self.photos_folder, self.vcf_path, self.output_path)
         self.process_thread.finished.connect(self.on_processing_finished)
         self.process_thread.error.connect(self.on_processing_error)
         self.process_thread.start()
@@ -245,7 +250,7 @@ class MainWindow(QMainWindow):
         """处理完成"""
         # 恢复按钮
         self.process_btn.setEnabled(True)
-        self.folder_btn.setEnabled(True)
+        self.photos_btn.setEnabled(True)
         self.vcf_btn.setEnabled(True)
         self.output_btn.setEnabled(True)
         self.status_label.setText('处理完成')
@@ -255,28 +260,55 @@ class MainWindow(QMainWindow):
         output.append("=" * 50)
         output.append("处理结果")
         output.append("=" * 50)
-        output.append(f"\n匹配成功: {result['matched_count']} 个联系人")
+        output.append(f"\n匹配成功: {result['matched_count']} 张照片")
+        output.append(f"匹配到: {result.get('matched_contact_count', 0)} 位联系人")
         output.append(f"总联系人: {result['total_contacts']} 个")
-        output.append(f"总文件夹: {result['total_folders']} 个")
-        output.append(f"输出目录: {result['output_path']}")
+        output.append(f"总照片数: {result['total_photos']} 张")
+        output.append(f"HTML相册: {result['html_path']}")
         
         if result['matched_contacts']:
             output.append("\n匹配详情：")
             output.append("-" * 50)
-            for i, match in enumerate(result['matched_contacts'], 1):
-                folder_name = os.path.basename(match['folder'])
+            # 按联系人分组统计
+            contact_count = {}
+            for match in result['matched_contacts']:
                 contact_name = match['contact']['name']
-                contact_org = match['contact'].get('org', '无')
-                output.append(f"{i}. 文件夹: {folder_name}")
-                output.append(f"   联系人: {contact_name}")
-                output.append(f"   单位: {contact_org}")
-                output.append("")
+                if contact_name not in contact_count:
+                    contact_count[contact_name] = 0
+                contact_count[contact_name] += 1
+            
+            for i, (name, count) in enumerate(contact_count.items(), 1):
+                output.append(f"{i}. {name}: {count} 张照片")
         
-        if result['unmatched_folders']:
-            output.append(f"\n未匹配的文件夹 ({len(result['unmatched_folders'])} 个):")
-            output.append("-" * 50)
-            for folder in result['unmatched_folders']:
-                output.append(f"  - {os.path.basename(folder)}")
+        # 显示每张照片提取到的标签（调试信息）
+        if 'photo_tags_info' in result and result['photo_tags_info']:
+            output.append("\n" + "=" * 50)
+            output.append("照片标签提取结果（调试信息）：")
+            output.append("=" * 50)
+            
+            # 按文件名排序显示
+            sorted_photos = sorted(result['photo_tags_info'].items(), 
+                                  key=lambda x: x[1]['filename'])
+            
+            for photo_path, info in sorted_photos:
+                filename = info['filename']
+                tags = info['tags']
+                
+                output.append(f"\n📷 {filename}")
+                if tags:
+                    tags_str = '、'.join(tags) if tags else '无'
+                    output.append(f"   提取到标签: {tags_str}")
+                else:
+                    output.append(f"   提取到标签: 无")
+        
+        if result['unmatched_photos']:
+            output.append("\n" + "=" * 50)
+            output.append(f"未匹配的照片 ({len(result['unmatched_photos'])} 张):")
+            output.append("=" * 50)
+            for photo in result['unmatched_photos'][:10]:  # 只显示前10个
+                output.append(f"  - {os.path.basename(photo)}")
+            if len(result['unmatched_photos']) > 10:
+                output.append(f"  ... 还有 {len(result['unmatched_photos']) - 10} 张未显示")
         
         if result['unmatched_contacts']:
             output.append(f"\n未匹配的联系人 ({len(result['unmatched_contacts'])} 个):")
@@ -285,29 +317,33 @@ class MainWindow(QMainWindow):
                 output.append(f"  - {contact['name']} ({contact.get('org', '无单位')})")
         
         output.append("\n" + "=" * 50)
-        output.append("输出目录结构说明：")
-        output.append("输出目录/")
-        output.append("├── 联系人名称/")
-        output.append("│   ├── 联系人名称.txt  (联系人信息)")
-        output.append("│   └── photo/  (照片文件夹)")
-        output.append("│       └── 图片文件...")
+        output.append("HTML相册功能：")
+        output.append("1. 显示联系人信息和照片")
+        output.append("2. 搜索联系人（姓名、单位、电话、邮箱）")
+        output.append("3. 点击照片可放大查看")
         output.append("=" * 50)
         
         self.result_text.setText('\n'.join(output))
         
-        # 显示成功消息
-        QMessageBox.information(
+        # 显示成功消息并询问是否打开HTML
+        reply = QMessageBox.question(
             self,
             '处理完成',
-            f'处理完成！\n\n匹配成功: {result["matched_count"]} 个联系人\n\n'
-            f'结果已保存到:\n{result["output_path"]}'
+            f'处理完成！\n\n匹配成功: {result["matched_count"]} 张照片\n\n'
+            f'HTML相册已保存到:\n{result["html_path"]}\n\n'
+            f'是否在浏览器中打开？',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
         )
+        
+        if reply == QMessageBox.Yes:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(result['html_path']))
     
     def on_processing_error(self, error_msg):
         """处理错误"""
         # 恢复按钮
         self.process_btn.setEnabled(True)
-        self.folder_btn.setEnabled(True)
+        self.photos_btn.setEnabled(True)
         self.vcf_btn.setEnabled(True)
         self.output_btn.setEnabled(True)
         self.status_label.setText('处理失败')
