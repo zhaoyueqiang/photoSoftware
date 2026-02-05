@@ -423,16 +423,16 @@ class ContactMatcher:
             # 尝试匹配每个标签
             for tag in photo_tags:
                 # 查找所有名称匹配的联系人（不限制已匹配）
-            candidates = [
-                (idx, c) for idx, c in enumerate(contacts)
-                    if self.is_name_match(tag, c['name'])
-            ]
-            
-            if len(candidates) == 0:
-                continue
-            elif len(candidates) == 1:
-                    # 只有一个匹配，直接添加
-                idx, contact = candidates[0]
+                candidates = [
+                    (idx, c) for idx, c in enumerate(contacts)
+                        if self.is_name_match(tag, c['name'])
+                ]
+                
+                if len(candidates) == 0:
+                    continue
+                elif len(candidates) == 1:
+                        # 只有一个匹配，直接添加
+                    idx, contact = candidates[0]
                     if contact not in photo_matches:  # 避免重复
                         photo_matches.append(contact)
                         matched_contact_indices.add(idx)
